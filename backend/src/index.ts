@@ -11,7 +11,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 //usar zod para dto validation
 app.get("/", (req, res) => {
-  res.json({ status: "OK", message: "Job Tracker API running" });
+  res.json({ 
+    status: "OK", 
+    message: "Job Tracker API running" 
+  });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
