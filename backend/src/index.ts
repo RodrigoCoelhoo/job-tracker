@@ -1,8 +1,12 @@
+/// <reference path="./types/express.d.ts" />
 import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth";
+import applicationRoutes from "./routes/application";
+import interviewRoutes from "./routes/interview";
+import { requireAuth } from './middlewares/auth.middleware';
 
 const app = express();
 app.use(cors({
@@ -13,6 +17,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use('/auth', authRoutes);
+app.use('/applications', requireAuth, applicationRoutes);
+app.use('/applications/:applicationId/interviews', requireAuth, interviewRoutes);
 
 const PORT = process.env.PORT || 5000;
 
