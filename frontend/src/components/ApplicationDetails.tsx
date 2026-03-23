@@ -1,7 +1,10 @@
-import { useState } from "react"
-import type { Application, Interview, Status } from "../types/application.types"
+import { useEffect, useState } from "react"
+import type { Application, Status } from "../types/application.types"
+import type { Interview } from "../types/interview.types"
 import styles from './ApplicationDetails.module.css'
 import { InterviewCard } from "./InterviewCard"
+import { interviewService } from "../services/interview.service"
+import { ConfirmModal } from "./ConfirmModal"
 
 type Props = {
 	application: Application
@@ -9,9 +12,24 @@ type Props = {
 	onEdit: () => void
 }
 
+const formatDate = (date: string) =>
+	new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+const emptyForm = {
+	title: '',
+	date: new Date().toISOString().split('T')[0],
+	time: new Date().toISOString().split('T')[1].slice(0, 5),
+	note: '',
+}
+
 export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 
 	const [showAddInterview, setShowAddInterview] = useState(false)
+	const [interviews, setInterviews] = useState<Interview[]>([])
+	const [form, setForm] = useState(emptyForm)
+	const [saving, setSaving] = useState(false)
+	const [editingInterview, setEditingInterview] = useState<Interview | null>(null)
+	const [confirmDeleteInterview, setConfirmDeleteInterview] = useState<Interview | null>(null)
 
 	const statusStyles: Record<Status, string> = {
 		Applied: styles.badgeApplied,
@@ -25,7 +43,112 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 		const base = 'https://calendar.google.com/calendar/r/eventedit'
 		const text = encodeURIComponent(`${interview.title} — ${app.company}`)
 		const details = encodeURIComponent(`Role: ${app.role}\nNote: ${interview.note}`)
-		return `${base}?text=${text}&details=${details}`
+
+		const start = new Date(interview.date)
+		const end = new Date(start.getTime() + 60 * 60 * 1000)
+
+		const fmt = (d: Date) =>
+			d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+
+		return `${base}?text=${text}&details=${details}&dates=${fmt(start)}/${fmt(end)}`
+	}
+
+	const fetchInterviews = async () => {
+		try {
+			const data = await interviewService.getInterviews(application.id)
+			setInterviews(data)
+		} catch (err) {
+			console.error(err)
+		}
+	}
+
+	useEffect(() => {
+		fetchInterviews()
+	}, [application.id])
+
+	const set = (field: keyof typeof emptyForm, value: string) =>
+		setForm(prev => ({ ...prev, [field]: value }))
+
+	const handleAddInterview = async () => {
+		if (!form.title.trim() || !form.date) return
+
+		setSaving(true)
+		try {
+			const datetime = form.time
+				? new Date(`${form.date}T${form.time}:00`)
+				: new Date(`${form.date}T00:00:00`)
+
+			const interview: Interview = await interviewService.createInterview(
+				application.id,
+				{
+					title: form.title,
+					date: datetime,
+					note: form.note
+				}
+			)
+
+			setInterviews(prev => [...prev, interview])
+			setForm(emptyForm)
+			setShowAddInterview(false)
+		} catch (err) {
+			console.error(err)
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	const handleCancel = () => {
+		setForm(emptyForm)
+		setShowAddInterview(false)
+		setEditingInterview(null)
+	}
+
+	const handleEditInterview = async () => {
+		if (!editingInterview || !form.title.trim() || !form.date) return
+
+		setSaving(true)
+		try {
+			const datetime = form.time
+				? new Date(`${form.date}T${form.time}:00`)
+				: new Date(`${form.date}T00:00:00`)
+
+			const updated = await interviewService.updateInterview(
+				application.id,
+				editingInterview.id,
+				{ title: form.title, date: datetime, note: form.note }
+			)
+
+			setInterviews(prev => prev.map(i => i.id === updated.id ? updated : i))
+			setEditingInterview(null)
+			setForm(emptyForm)
+			setShowAddInterview(false)
+		} catch (err) {
+			console.error(err)
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	const handleDeleteInterview = async () => {
+		if (!confirmDeleteInterview) return
+		try {
+			await interviewService.deleteInterview(application.id, confirmDeleteInterview.id)
+			setInterviews(prev => prev.filter(i => i.id !== confirmDeleteInterview.id))
+			setConfirmDeleteInterview(null)
+		} catch (err) {
+			console.error(err)
+		}
+	}
+
+	const handleOpenEdit = (interview: Interview) => {
+		setEditingInterview(interview)
+		setForm({
+			title: interview.title,
+			date: new Date(interview.date).toISOString().split('T')[0],
+			time: new Date(interview.date).toTimeString().slice(0, 5),
+			note: interview.note ?? '',
+		})
+		setShowAddInterview(true)
 	}
 
 	return (
@@ -45,10 +168,7 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 						<button className={styles.panelEditBtn} onClick={onEdit}>
 							✏️ Edit
 						</button>
-						<button className={styles.panelDeleteBtn}>🗑 Delete</button>
-						<button className={styles.panelClose} onClick={onClose}>
-							x
-						</button>
+						<button className={styles.panelClose} onClick={onClose}>×</button>
 					</div>
 				</div>
 
@@ -77,7 +197,7 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 							</div>
 							<div className={styles.panelMetaItem}>
 								<div className={styles.panelMetaLabel}>Applied</div>
-								<div className={styles.panelMetaValue}>{application.date}</div>
+								<div className={styles.panelMetaValue}>{formatDate(application.date.toString())}</div>
 							</div>
 						</div>
 					</div>
@@ -96,7 +216,7 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 							<p className={styles.panelSectionTitle}>Interviews</p>
 							<button
 								className={styles.actionBtn}
-								onClick={() => setShowAddInterview(v => !v)}
+								onClick={() => showAddInterview ? handleCancel() : setShowAddInterview(true)}
 							>
 								{showAddInterview ? 'Cancel' : '+ Add'}
 							</button>
@@ -106,34 +226,63 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 						{showAddInterview && (
 							<div className={styles.addInterviewForm}>
 								<div className={styles.formRow}>
-									<label className={styles.formLabel}>Interview Title</label>
-									<input className={styles.formInput} placeholder="e.g. Technical Screen" />
+									<label className={styles.formLabel}>Interview Title *</label>
+									<input
+										className={styles.formInput}
+										placeholder="e.g. Technical Screen"
+										value={form.title}
+										onChange={e => set('title', e.target.value)}
+									/>
 								</div>
 								<div className={styles.formRow2}>
 									<div className={styles.formRow}>
-										<label className={styles.formLabel}>Date</label>
-										<input className={styles.formInput} type="date" />
+										<label className={styles.formLabel}>Date *</label>
+										<input
+											className={styles.formInput}
+											type="date"
+											value={form.date}
+											onChange={e => set('date', e.target.value)}
+										/>
 									</div>
 									<div className={styles.formRow}>
 										<label className={styles.formLabel}>Time</label>
-										<input className={styles.formInput} type="time" />
+										<input
+											className={styles.formInput}
+											type="time"
+											value={form.time ?? ''}
+											onChange={e => set('time', e.target.value)}
+										/>
 									</div>
 								</div>
 								<div className={styles.formRow}>
 									<label className={styles.formLabel}>Note</label>
-									<input className={styles.formInput} placeholder="e.g. With the hiring manager" />
+									<input
+										className={styles.formInput}
+										placeholder="e.g. With the hiring manager"
+										value={form.note}
+										onChange={e => set('note', e.target.value)}
+									/>
 								</div>
-								<button className={styles.submitBtn}>Save Interview</button>
+								<button
+									className={styles.submitBtn}
+									onClick={editingInterview ? handleEditInterview : handleAddInterview}
+									disabled={saving}
+								>
+									{saving ? 'Saving...' : editingInterview ? 'Save Changes' : 'Save Interview'}
+								</button>
 							</div>
 						)}
 
-						{application.interviews.length > 0 ? (
+						{interviews.length > 0 ? (
 							<div className={styles.interviewList}>
-								{application.interviews.map(interview => (
+								{interviews.map(interview => (
 									<InterviewCard
+										key={interview.id}
 										interview={interview}
 										application={application}
 										buildCalendarUrl={buildCalendarUrl}
+										onEdit={handleOpenEdit}
+										onDelete={(interview) => setConfirmDeleteInterview(interview)}
 									/>
 								))}
 							</div>
@@ -146,6 +295,16 @@ export const ApplicationDetails = ({ application, onClose, onEdit }: Props) => {
 
 				</div>
 			</div>
+
+			{confirmDeleteInterview && (
+				<ConfirmModal
+					title="Delete Interview"
+					message={`Are you sure you want to delete "${confirmDeleteInterview.title}"? This cannot be undone.`}
+					confirmLabel="Yes, delete"
+					onConfirm={handleDeleteInterview}
+					onCancel={() => setConfirmDeleteInterview(null)}
+				/>
+			)}
 		</>
 	)
 }

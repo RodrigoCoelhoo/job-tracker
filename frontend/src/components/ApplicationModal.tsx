@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { Application, Status, Type } from '../types/application.types'
+import type { Application, ApplicationForm, Status, Type } from '../types/application.types'
 import styles from './ApplicationModal.module.css'
+import { ConfirmModal } from './ConfirmModal'
 
 type Mode = 'add' | 'edit'
 
@@ -8,11 +9,9 @@ interface Props {
 	mode: Mode
 	application?: Application
 	onClose: () => void
-	onSubmit: (data: Omit<Application, 'id' | 'interviews'>) => void
+	onSubmit: (data: ApplicationForm) => void
 	onDelete?: () => void
 }
-
-const today = () => new Date().toISOString().split('T')[0]
 
 const emptyForm = {
 	company: '',
@@ -21,11 +20,12 @@ const emptyForm = {
 	type: 'Full-time' as Type,
 	status: 'Applied' as Status,
 	notes: '',
-	date: today(),
+	date: new Date().toISOString().split('T')[0],
 }
 
 export const ApplicationModal = ({ mode, application, onClose, onSubmit, onDelete }: Props) => {
 	const [form, setForm] = useState(emptyForm)
+	const [confirmDelete, setConfirmDelete] = useState(false)
 
 	useEffect(() => {
 		if (mode === 'edit' && application) {
@@ -36,7 +36,7 @@ export const ApplicationModal = ({ mode, application, onClose, onSubmit, onDelet
 				type: application.type,
 				status: application.status,
 				notes: application.notes ?? '',
-				date: application.date,
+				date: new Date(application.date).toISOString().split('T')[0],
 			})
 		}
 	}, [mode, application])
@@ -46,7 +46,10 @@ export const ApplicationModal = ({ mode, application, onClose, onSubmit, onDelet
 
 	const handleSubmit = () => {
 		if (!form.company.trim() || !form.role.trim()) return
-		onSubmit({ ...form, date: form.date || today() })
+		onSubmit({
+			...form,
+			date: new Date(form.date)
+		})
 	}
 
 	const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -159,7 +162,7 @@ export const ApplicationModal = ({ mode, application, onClose, onSubmit, onDelet
 				{/* Footer */}
 				<div className={styles.footer}>
 					{mode === 'edit' && onDelete && (
-						<button className={styles.deleteBtn} onClick={onDelete}>
+						<button className={styles.deleteBtn} onClick={() => setConfirmDelete(true)}>
 							🗑 Delete
 						</button>
 					)}
@@ -172,6 +175,16 @@ export const ApplicationModal = ({ mode, application, onClose, onSubmit, onDelet
 				</div>
 
 			</div>
+
+			{confirmDelete && (
+				<ConfirmModal
+					title="Delete Application"
+					message={`Are you sure you want to delete '${form.company}'? This will also delete all interviews and cannot be undone.`}
+					confirmLabel="Yes, delete"
+					onConfirm={onDelete!}
+					onCancel={() => setConfirmDelete(false)}
+				/>
+			)}
 		</div>
 	)
 }

@@ -1,101 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import styles from './Dashboard.module.css'
 import { Navbar } from '../components/Navbar'
 import { ApplicationDetails } from '../components/ApplicationDetails'
-import type { Application, Status } from '../types/application.types'
+import type { Application, ApplicationForm, ApplicationStats, Status } from '../types/application.types'
 import { ApplicationModal } from '../components/ApplicationModal'
-
-const stats = [
-	{ label: 'Total Applied', value: '12', icon: '📋', color: '#e8f4fd' },
-	{ label: 'Interviews', value: '4', icon: '📅', color: '#fef3e2' },
-	{ label: 'Offers', value: '1', icon: '🎉', color: '#e6f9f0' },
-	{ label: 'Rejected', value: '3', icon: '❌', color: '#fde8e8' },
-]
-
-const applications: Application[] = [
-	{
-		id: 1, company: 'Stripe', location: 'Remote',
-		role: 'Backend Engineer', type: 'Full-time', date: 'Mar 18, 2026', status: 'Interview',
-		notes: 'Applied through LinkedIn. Referral from John at Stripe.',
-		interviews: [
-			{ id: 1, title: 'Technical Screen', date: 'Mar 22, 2026 · 10:00 AM', note: 'With the hiring manager' },
-			{ id: 2, title: 'System Design', date: 'Mar 25, 2026 · 2:00 PM', note: 'Focus on distributed systems' },
-		]
-	},
-	{
-		id: 2, company: 'Notion', location: 'San Francisco, CA',
-		role: 'Full Stack Developer', type: 'Full-time', date: 'Mar 15, 2026', status: 'Applied',
-		notes: 'Applied via careers page. Love their product.',
-		interviews: []
-	},
-	{
-		id: 3, company: 'Vercel', location: 'Remote',
-		role: 'Node.js Engineer', type: 'Full-time', date: 'Mar 12, 2026', status: 'Offer',
-		notes: 'Got an offer! Reviewing the package.',
-		interviews: [
-			{ id: 1, title: 'Final Round', date: 'Mar 19, 2026 · 11:00 AM', note: 'With CTO and team lead' },
-		]
-	},
-	{
-		id: 4, company: 'Linear', location: 'Remote',
-		role: 'Software Engineer', type: 'Full-time', date: 'Mar 10, 2026', status: 'Rejected',
-		notes: 'Got rejected after the technical screen. Follow up on feedback.',
-		interviews: []
-	},
-	{
-		id: 5, company: 'Figma', location: 'New York, NY',
-		role: 'API Developer', type: 'Full-time', date: 'Mar 8, 2026', status: 'Ghosted',
-		notes: 'No response after 2 follow-ups.',
-		interviews: []
-	},
-	{
-		id: 6, company: 'Supabase', location: 'Remote',
-		role: 'Backend Developer', type: 'Full-time', date: 'Mar 5, 2026', status: 'Interview',
-		notes: 'First interview went well. Waiting for next steps.',
-		interviews: [
-			{ id: 1, title: 'Culture Fit', date: 'Mar 23, 2026 · 3:00 PM', note: 'With People Ops' },
-		]
-	},
-	{
-		id: 7, company: 'PlanetScale', location: 'Remote',
-		role: 'Software Engineer', type: 'Contract', date: 'Mar 2, 2026', status: 'Applied',
-		notes: 'Contract position, 6 months. Good opportunity.',
-		interviews: []
-	},
-	{
-		id: 8, company: 'Railway', location: 'Remote',
-		role: 'Platform Engineer', type: 'Full-time', date: 'Feb 28, 2026', status: 'Applied',
-		notes: 'Applied directly through their site.',
-		interviews: []
-	},
-	{
-		id: 9, company: 'Resend', location: 'Remote',
-		role: 'Backend Engineer', type: 'Full-time', date: 'Feb 25, 2026', status: 'Rejected',
-		notes: 'Not a good fit at this time.',
-		interviews: []
-	},
-	{
-		id: 10, company: 'Turso', location: 'Remote',
-		role: 'Software Engineer', type: 'Full-time', date: 'Feb 22, 2026', status: 'Applied',
-		notes: 'Interesting edge database product.',
-		interviews: []
-	},
-	{
-		id: 11, company: 'Neon', location: 'Remote',
-		role: 'Backend Developer', type: 'Full-time', date: 'Feb 20, 2026', status: 'Applied',
-		notes: 'Serverless Postgres, great stack.',
-		interviews: []
-	},
-	{
-		id: 12, company: 'Clerk', location: 'Remote',
-		role: 'API Engineer', type: 'Full-time', date: 'Feb 18, 2026', status: 'Interview',
-		notes: 'Auth company, relevant to current project.',
-		interviews: [
-			{ id: 1, title: 'Intro Call', date: 'Mar 24, 2026 · 1:00 PM', note: 'With recruiter' },
-		]
-	},
-]
+import { applicationService } from '../services/application.service'
 
 const statusStyles: Record<Status, string> = {
 	Applied: styles.badgeApplied,
@@ -108,27 +18,83 @@ const statusStyles: Record<Status, string> = {
 const filters = ['All', 'Applied', 'Interview', 'Offer', 'Rejected', 'Ghosted']
 const PAGE_SIZE = 10
 
+const formatDate = (date: string) =>
+	new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
 export default function Dashboard() {
 	const { user } = useAuth()
-	const [activeFilter, setActiveFilter] = useState('All')
-	const [currentPage, setCurrentPage] = useState(1)
+	const [applications, setApplications] = useState<Application[]>([])
+	const [activeFilter, setActiveFilter] = useState<string>('All')
 	const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 	const [modal, setModal] = useState<{ mode: 'add' | 'edit', app?: Application } | null>(null)
+	const [currentPage, setCurrentPage] = useState<number>(1)
+	const [totalPages, setTotalPages] = useState<number>(1)
+	const [total, setTotal] = useState<number>(0)
 
-	const filtered = activeFilter === 'All'
-		? applications
-		: applications.filter(a => a.status === activeFilter)
+	const [stats, setStats] = useState<ApplicationStats>({ total: 0, interviews: 0, offers: 0, rejections: 0 })
+	const [loading, setLoading] = useState<boolean>(true)
 
-	const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-	const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+	const MAX_PAGINATION_OPTIONS = 5
+	let startPage = Math.max(currentPage - Math.floor(MAX_PAGINATION_OPTIONS / 2), 1)
+	let endPage = startPage + MAX_PAGINATION_OPTIONS - 1
+	if (endPage > totalPages) {
+		endPage = totalPages
+		startPage = Math.max(endPage - MAX_PAGINATION_OPTIONS + 1, 1)
+	}
+	const visiblePages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i)
+
+	const fetchData = async () => {
+		try {
+			const [{ applications, pagination }, stats] = await Promise.all([
+				applicationService.getApplications(currentPage, PAGE_SIZE, activeFilter === 'All' ? undefined : activeFilter as Status),
+				applicationService.getStats()
+			])
+
+			setApplications(applications)
+			setTotalPages(pagination.totalPages)
+			setTotal(pagination.total)
+			setStats(stats)
+		} catch (err) {
+			console.error(err)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	useEffect(() => {
+		fetchData()
+	}, [activeFilter, currentPage])
 
 	const handleFilterChange = (f: string) => {
 		setActiveFilter(f)
 		setCurrentPage(1)
 	}
 
-	const handleRowClick = (app: Application) => {
-		setSelectedApp(app)
+	const handleSubmit = async (data: ApplicationForm) => {
+		try {
+			if (modal?.mode === 'add') {
+				await applicationService.createApplication(data)
+			} else if (modal?.mode === 'edit' && modal.app) {
+				await applicationService.updateApplication(modal.app.id, data)
+			}
+			setModal(null)
+			setSelectedApp(null)
+			fetchData()
+		} catch (err) {
+			console.error(err)
+		}
+	}
+
+	const handleDelete = async () => {
+		if (!modal?.app) return
+		try {
+			await applicationService.deleteApplication(modal.app.id)
+			setModal(null)
+			setSelectedApp(null)
+			fetchData()
+		} catch (err) {
+			console.error(err)
+		}
 	}
 
 	const greeting = () => {
@@ -138,27 +104,27 @@ export default function Dashboard() {
 		return 'Good evening'
 	}
 
-	const MAX_PAGINATION_OPTIONS = 5
+	const statKeys = [
+		{ label: 'Total Applied', icon: '📋', color: '#e8f4fd', value: stats.total },
+		{ label: 'Interviews', icon: '📅', color: '#fef3e2', value: stats.interviews },
+		{ label: 'Offers', icon: '🎉', color: '#e6f9f0', value: stats.offers },
+		{ label: 'Rejected', icon: '❌', color: '#fde8e8', value: stats.rejections },
+	]
 
-	let startPage = Math.max(currentPage - Math.floor(MAX_PAGINATION_OPTIONS / 2), 1)
-	let endPage = startPage + MAX_PAGINATION_OPTIONS - 1
-
-	if (endPage > totalPages) {
-		endPage = totalPages
-		startPage = Math.max(endPage - MAX_PAGINATION_OPTIONS + 1, 1)
-	}
-
-	const visiblePages = Array.from(
-		{ length: endPage - startPage + 1 },
-		(_, i) => startPage + i
+	if (loading) return (
+		<div className={styles.loadingContainer}>
+			<div className={styles.dots}>
+				<span className={styles.dot} />
+				<span className={styles.dot} />
+				<span className={styles.dot} />
+			</div>
+		</div>
 	)
 
 	return (
 		<div className={styles.container}>
-
 			<Navbar />
 
-			{/* Main */}
 			<main className={styles.main}>
 
 				{/* Header */}
@@ -173,13 +139,15 @@ export default function Dashboard() {
 
 				{/* Stats */}
 				<div className={styles.stats}>
-					{stats.map((stat, i) => (
-						<div key={i} className={styles.statCard}>
-							<div className={styles.statIcon} style={{ background: stat.color }}>{stat.icon}</div>
-							<p className={styles.statValue}>{stat.value}</p>
-							<p className={styles.statLabel}>{stat.label}</p>
-						</div>
-					))}
+					{statKeys.map((stat, i) => {
+						return (
+							<div key={i} className={styles.statCard}>
+								<div className={styles.statIcon} style={{ background: stat.color }}>{stat.icon}</div>
+								<p className={styles.statValue}>{stat.value}</p>
+								<p className={styles.statLabel}>{stat.label}</p>
+							</div>
+						)
+					})}
 				</div>
 
 				{/* Section header */}
@@ -217,11 +185,11 @@ export default function Dashboard() {
 							</tr>
 						</thead>
 						<tbody>
-							{paginated.map(app => (
+							{applications.map(app => (
 								<tr
 									key={app.id}
 									className={`${styles.tableRow} ${selectedApp?.id === app.id ? styles.tableRowActive : ''}`}
-									onClick={() => handleRowClick(app)}
+									onClick={() => setSelectedApp(app)}
 								>
 									<td>
 										<div className={styles.companyCell}>
@@ -233,7 +201,7 @@ export default function Dashboard() {
 									</td>
 									<td className={styles.roleText}>{app.role}</td>
 									<td className={styles.roleText}>{app.type}</td>
-									<td className={styles.dateText}>{app.date}</td>
+									<td className={styles.dateText}>{formatDate(app.date.toString())}</td>
 									<td>
 										<span className={`${styles.badge} ${statusStyles[app.status]}`}>
 											<span className={styles.badgeDot} />
@@ -243,7 +211,7 @@ export default function Dashboard() {
 									<td>
 										<button
 											className={styles.actionBtn}
-											onClick={e => { e.stopPropagation(); handleRowClick(app) }}
+											onClick={e => { e.stopPropagation(); setSelectedApp(app) }}
 										>
 											View
 										</button>
@@ -257,7 +225,7 @@ export default function Dashboard() {
 				{/* Pagination */}
 				<div className={styles.pagination}>
 					<span className={styles.paginationInfo}>
-						Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} applications
+						Showing {total === 0 ? 0 : Math.min((currentPage - 1) * PAGE_SIZE + 1, total)}–{Math.min(currentPage * PAGE_SIZE, total)} of {total} applications
 					</span>
 					<div className={styles.paginationControls}>
 						<button
@@ -300,8 +268,8 @@ export default function Dashboard() {
 					mode={modal.mode}
 					application={modal.app}
 					onClose={() => setModal(null)}
-					onSubmit={(data) => { console.log(data); setModal(null) }}
-					onDelete={() => { console.log('delete'); setModal(null) }}
+					onSubmit={handleSubmit}
+					onDelete={handleDelete}
 				/>
 			)}
 		</div>

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { supabase } from '../lib/supabase'
-import type { ApplicationForm, ApplicationSummary, Status } from '../types/application.types'
+import type { ApplicationForm, Application, Status, ApplicationStats } from '../types/application.types'
 import { Page } from '../types/pagination.types'
 
 const VALID_STATUSES: Status[] = ['Applied', 'Interview', 'Offer', 'Rejected', 'Ghosted']
@@ -11,7 +11,7 @@ export const getApplications = async (
 	limit: number,
 	status?: Status
 ): Promise<{
-	applications: ApplicationSummary[],
+	applications: Application[],
 	pagination: Page
 }> => {
 	const from = (page - 1) * limit
@@ -33,7 +33,7 @@ export const getApplications = async (
 	if (error) throw error
 
 	return {
-		applications: applications as ApplicationSummary[],
+		applications: applications as Application[],
 		pagination: {
 			total: count ?? 0,
 			page,
@@ -61,7 +61,7 @@ export const applicationBelongsToUser = async (
 export const createApplication = async (
 	userId: string,
 	body: ApplicationForm
-): Promise<ApplicationSummary> => {
+): Promise<Application> => {
 
 	const { data: application, error } = await supabase
 		.from('applications')
@@ -80,14 +80,14 @@ export const createApplication = async (
 
 	if (error) throw error
 
-	return application as ApplicationSummary;
+	return application as Application;
 }
 
 export const updateApplication = async (
 	userId: string,
 	id: string,
 	body: ApplicationForm
-): Promise<ApplicationSummary | null> => {
+): Promise<Application | null> => {
 	const { data: application, error } = await supabase
 		.from('applications')
 		.update({
@@ -109,7 +109,7 @@ export const updateApplication = async (
 		throw error
 	}
 
-	return application as ApplicationSummary;
+	return application as Application;
 }
 
 export const deleteApplication = async (
@@ -123,4 +123,22 @@ export const deleteApplication = async (
 		.eq('user_id', userId)
 
 	if (error) throw error
+}
+
+export const getStats = async (userId: string): Promise<ApplicationStats> => {
+	const { data, error } = await supabase
+		.from('applications')
+		.select('status')
+		.eq('user_id', userId)
+
+	if (error) throw error
+
+	const applications = data ?? []
+
+	return {
+		total: applications.length,
+		interviews: applications.filter(a => a.status === 'Interview').length,
+		offers: applications.filter(a => a.status === 'Offer').length,
+		rejections: applications.filter(a => a.status === 'Rejected').length,
+	}
 }

@@ -72,3 +72,15 @@ export async function deleteApplication(req: Request, res: Response): Promise<vo
 		res.status(500).json({ error: 'Internal server error' })
 	}
 }
+
+export async function getStats(req: Request, res: Response): Promise<void> {
+	const userId = req.user!.id
+
+	try {
+		const stats = await applicationService.getStats(userId)
+		res.status(200).json({ stats })
+	} catch (error) {
+		console.error('Error fetching stats:', error)
+		res.status(500).json({ error: 'Internal server error' })
+	}
+}

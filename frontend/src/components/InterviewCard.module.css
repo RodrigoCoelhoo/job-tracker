@@ -10,15 +10,23 @@
 	border-radius: 12px;
 	padding: 14px;
 	display: flex;
-	align-items: flex-start;
+	align-items: stretch;
 	justify-content: space-between;
 	gap: 12px;
 }
 
+.interviewItem:hover .titleActions {
+	opacity: 1;
+	pointer-events: all;
+}
+
+/* Left column */
 .interviewInfo {
 	display: flex;
 	flex-direction: column;
-	gap: 3px;
+	gap: 4px;
+	flex: 1;
+	min-width: 0;
 }
 
 .interviewTitle {
@@ -36,7 +44,56 @@
 .interviewNote {
 	font-size: 12px;
 	color: #6b6760;
-	margin-top: 2px;
+}
+
+/* Right column */
+.rightCol {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: space-between;
+	flex-shrink: 0;
+	gap: 8px;
+}
+
+.titleActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+}
+
+.iconBtn {
+	padding: 3px 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #fff;
+	border: 1.5px solid #e2e0db;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 500;
+	color: #4a4843;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.iconBtn:hover {
+	border-color: #c9c6bf;
+	color: #1a1a1a;
+}
+
+.iconBtnDelete {
+	border-color: #fecaca;
+	color: #991b1b;
+}
+
+.iconBtnDelete:hover {
+	background: #fde8e8;
+	border-color: #f87171;
 }
 
 .calendarBtn {
@@ -55,7 +112,6 @@
 	text-decoration: none;
 	white-space: nowrap;
 	transition: all 0.15s ease;
-	flex-shrink: 0;
 }
 
 .calendarBtn:hover {

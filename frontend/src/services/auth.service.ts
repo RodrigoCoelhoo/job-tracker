@@ -1,10 +1,10 @@
-import type { AuthResponse, LogoutResponse } from '../types/auth.types.ts'
+import type { AuthResponse, LogoutResponse } from '../types/auth.types'
 
-const API_URL = import.meta.env.VITE_BACKEND_URL
+const API_URL = `${import.meta.env.VITE_BACKEND_URL}/auth`
 
 export const authService = {
 	me: async (): Promise<AuthResponse> => {
-		const res = await fetch(`${API_URL}/auth/me`, {
+		const res = await fetch(`${API_URL}/me`, {
 			credentials: 'include'
 		})
 		
@@ -13,7 +13,7 @@ export const authService = {
 	},
 
 	logout: async (): Promise<LogoutResponse> => {
-		const res = await fetch(`${API_URL}/auth/logout`, {
+		const res = await fetch(`${API_URL}/logout`, {
 			method: 'POST',
 			credentials: 'include'
 		})
@@ -23,6 +23,6 @@ export const authService = {
 	},
 
 	loginWithGoogle: () => {
-		window.location.href = `${API_URL}/auth/google`
+		window.location.href = `${API_URL}/google`
 	},
 }
