@@ -1,5 +1,6 @@
 import type { ApplicationForm, Application, ApplicationStats } from "../types/application.types"
 import type { Page } from "../types/pagination.types"
+import { apiFetch } from "./api"
 
 const API_URL = `${import.meta.env.VITE_BACKEND_URL}/applications`
 
@@ -14,7 +15,7 @@ export const applicationService = {
 
 		if (status) params.append('status', status)
 
-		const res = await fetch(`${API_URL}?${params.toString()}`, {
+		const res = await apiFetch(`${API_URL}?${params.toString()}`, {
 			credentials: 'include'
 		})
 
@@ -28,7 +29,7 @@ export const applicationService = {
 	},
 
 	createApplication: async (data: ApplicationForm): Promise<Application> => {
-		const res = await fetch(`${API_URL}`, {
+		const res = await apiFetch(`${API_URL}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
@@ -45,7 +46,7 @@ export const applicationService = {
 	},
 
 	updateApplication: async (id: string, data: ApplicationForm): Promise<Application> => {
-		const res = await fetch(`${API_URL}/${id}`, {
+		const res = await apiFetch(`${API_URL}/${id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
@@ -62,7 +63,7 @@ export const applicationService = {
 	},
 
 	deleteApplication: async (id: string): Promise<void> => {
-		const res = await fetch(`${API_URL}/${id}`, {
+		const res = await apiFetch(`${API_URL}/${id}`, {
 			method: 'DELETE',
 			credentials: 'include'
 		})
@@ -73,7 +74,7 @@ export const applicationService = {
 	},
 
 	getStats: async (): Promise<ApplicationStats> => {
-		const res = await fetch(`${API_URL}/stats`, {
+		const res = await apiFetch(`${API_URL}/stats`, {
 			credentials: 'include'
 		})
 

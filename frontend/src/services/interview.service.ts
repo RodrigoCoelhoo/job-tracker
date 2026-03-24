@@ -1,10 +1,11 @@
 import type { Interview, InterviewForm } from '../types/interview.types'
+import { apiFetch } from './api'
 
 const API_URL = `${import.meta.env.VITE_BACKEND_URL}/applications`
 
 export const interviewService = {
 	getInterviews: async (applicationId: string): Promise<Interview[]> => {
-		const res = await fetch(`${API_URL}/${applicationId}/interviews`, {
+		const res = await apiFetch(`${API_URL}/${applicationId}/interviews`, {
 			credentials: 'include'
 		})
 
@@ -18,7 +19,7 @@ export const interviewService = {
 	},
 
 	createInterview: async (applicationId: string, data: InterviewForm): Promise<Interview> => {
-		const res = await fetch(`${API_URL}/${applicationId}/interviews`, {
+		const res = await apiFetch(`${API_URL}/${applicationId}/interviews`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
@@ -35,7 +36,7 @@ export const interviewService = {
 	},
 
 	updateInterview: async (applicationId: string, interviewId: string, data: InterviewForm): Promise<Interview> => {
-		const res = await fetch(`${API_URL}/${applicationId}/interviews/${interviewId}`, {
+		const res = await apiFetch(`${API_URL}/${applicationId}/interviews/${interviewId}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
@@ -52,7 +53,7 @@ export const interviewService = {
 	},
 
 	deleteInterview: async (applicationId: string, interviewId: string): Promise<void> => {
-		const res = await fetch(`${API_URL}/${applicationId}/interviews/${interviewId}`, {
+		const res = await apiFetch(`${API_URL}/${applicationId}/interviews/${interviewId}`, {
 			method: 'DELETE',
 			credentials: 'include'
 		})

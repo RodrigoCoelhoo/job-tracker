@@ -7,7 +7,7 @@ export const authService = {
 		const res = await fetch(`${API_URL}/me`, {
 			credentials: 'include'
 		})
-		
+
 		if (!res.ok) throw new Error('Not authenticated')
 		return res.json()
 	},

@@ -1,18 +1,8 @@
-export type Status = 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Ghosted'
-export type Type = 'Full-time' | 'Internship' | 'Contract' | 'Part-time'
+export type { ApplicationForm, Status, Type } from "../schemas/application.schemas";
+import { Status, Type } from "../schemas/application.schemas";
 
 export interface Application {
 	id: string
-	company: string
-	location: string
-	role: string
-	type: Type
-	date: Date
-	status: Status
-	notes: string
-}
-
-export interface ApplicationForm {
 	company: string
 	location: string
 	role: string

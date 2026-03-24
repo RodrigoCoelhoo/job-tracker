@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth";
 import applicationRoutes from "./routes/application";
 import { requireAuth } from './middlewares/auth.middleware';
+import { apiLimiter } from './middlewares/ratelimiter.middleware';
 
 const app = express();
 app.use(cors({
@@ -14,6 +15,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(apiLimiter);
 
 app.use('/auth', authRoutes);
 app.use('/applications', requireAuth, applicationRoutes);
