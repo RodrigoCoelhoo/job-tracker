@@ -47,4 +47,4 @@ Copy the generated values and paste them into `backend/.env`:
 | `GOOGLE_CLIENT_SECRET` | Client secret |
 
 > [!CAUTION]
-> ⚠️ Never commit these values to version control.
+> Never commit these values to version control.
